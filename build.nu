@@ -8,7 +8,7 @@ def main [package_file: path = nupm.nuon] {
     let name = open ($repo_root | path join "Cargo.toml") | get package.name
     let features = []
 
-    let cmd = $"cargo install --path ($repo_root) --root ($install_root) --features=($features | str join ",")"
+    let cmd = $"cargo install --path \"($repo_root)\" --root \"($install_root)\""
     log info $"building plugin using: (ansi blue)($cmd)(ansi reset)"
     nu -c $cmd
     let ext: string = if ($nu.os-info.name == 'windows') { '.exe' } else { '' }
