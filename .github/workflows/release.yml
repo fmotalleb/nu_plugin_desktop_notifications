@@ -1,0 +1,100 @@
+name: multi-platform-release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            asset_name: nu-plugin-desktop-notifications-linux-x86_64
+
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            asset_name: nu-plugin-desktop-notifications-linux-aarch64
+
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            asset_name: nu-plugin-desktop-notifications-macos-x86_64
+
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            asset_name: nu-plugin-desktop-notifications-macos-aarch64
+
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            asset_name: nu-plugin-desktop-notifications-windows-x86_64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross (linux only)
+        if: runner.os == 'Linux'
+        run: cargo install cross --locked
+
+      - name: Build
+        shell: bash
+        env:
+          CARGO_PROFILE_RELEASE_LTO: true
+          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 1
+          CARGO_PROFILE_RELEASE_PANIC: abort
+          CARGO_PROFILE_RELEASE_STRIP: true
+        run: |
+          if [ "${{ runner.os }}" = "Linux" ] && [ "${{ matrix.target }}" != "x86_64-unknown-linux-gnu" ]; then
+            cross build --release --target ${{ matrix.target }}
+          else
+            cargo build --release --target ${{ matrix.target }}
+          fi
+
+      - name: Package (Linux / macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          mkdir dist
+          cp target/${{ matrix.target }}/release/* dist/
+          tar -czf ${{ matrix.asset_name }}.tar.gz -C dist .
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          mkdir dist
+          cp target/${{ matrix.target }}/release/*.exe dist/
+          cd dist
+          7z a ../${{ matrix.asset_name }}.zip *
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: |
+            ${{ matrix.asset_name }}.tar.gz
+            ${{ matrix.asset_name }}.zip
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v4
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: '**/*'
