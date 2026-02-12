@@ -66,16 +66,24 @@ jobs:
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          mkdir dist
-          cp target/${{ matrix.target }}/release/* dist/
+          mkdir -p dist
+          find target/${{ matrix.target }}/release \
+            -maxdepth 1 \
+            -type f \
+            -perm +111 \
+            -exec cp {} dist/ \;
           tar -czf ${{ matrix.asset_name }}.tar.gz -C dist .
 
       - name: Package (Windows)
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          mkdir dist
-          cp target/${{ matrix.target }}/release/*.exe dist/
+          mkdir -p dist
+          find target/${{ matrix.target }}/release \
+            -maxdepth 1 \
+            -type f \
+            -name '*.exe' \
+            -exec cp {} dist/ \;
           cd dist
           7z a ../${{ matrix.asset_name }}.zip *
 
