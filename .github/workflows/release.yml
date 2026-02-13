@@ -62,17 +62,18 @@ jobs:
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          # Use /111 for GNU find compliance (any executable bit)
-          # or specific filename if known
-          BIN_NAME=$(find target/${{ matrix.target }}/release -maxdepth 1 -type f -executable ! -name "*.d" | head -n 1)
-          cp "$BIN_NAME" "${{ matrix.asset_name }}"
+          # -perm -111 is portable across GNU and BSD find for "any executable bit"
+          # We filter out .d (debug) and .rlib files
+          BIN_PATH=$(find target/${{ matrix.target }}/release -maxdepth 1 -type f -perm -111 ! -name "*.d" ! -name "*.rlib" | head -n 1)
+          cp "$BIN_PATH" "${{ matrix.asset_name }}"
+          chmod +x "${{ matrix.asset_name }}"
 
       - name: Prepare Binary (Windows)
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          BIN_NAME=$(find target/${{ matrix.target }}/release -maxdepth 1 -type f -name "*.exe" | head -n 1)
-          cp "$BIN_NAME" "${{ matrix.asset_name }}.exe"
+          BIN_PATH=$(find target/${{ matrix.target }}/release -maxdepth 1 -type f -name "*.exe" | head -n 1)
+          cp "$BIN_PATH" "${{ matrix.asset_name }}.exe"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
