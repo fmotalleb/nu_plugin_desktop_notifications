@@ -1,4 +1,4 @@
-use std log
+use std/log
 
 
 def main [package_file: path = nupm.nuon] {
